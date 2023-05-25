@@ -1,69 +1,112 @@
 import { useState } from "react";
 import "./App.css";
+import JsonToExcel from "./JsonToExcel";
+import { v4 as uuid } from "uuid";
 
 function App() {
-  //1. Declare the todo object
-  const [todo, setTodo] = useState({
-    title: "Title",
-    description: "Description",
+  const [task, setTask] = useState({
+    taskId: "",
+    taskList: "",
+    title: "",
+    description: "",
   });
-  // 2. Declare the todos array
-  const [todos, setTodos] = useState([]);
-  // 3. A variable to check whter we need to edit or not?
-  const [isEditing, setIsEditing] = useState(false);
-  // 4. It stores an index to edit
-  const [editingTodoIndex, setEditingTodoIndex] = useState(null);
 
-  // Whenever data of the input contianer changes handleChange functions call
+  const [tasks, setTasks] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTaskIndex, setEditingTaskIndex] = useState(null);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setTodo({ ...todo, [name]: value });
-    console.log(todo);
+    setTask((prevTask) => ({ ...prevTask, [name]: value }));
   };
 
-  // To save the data of the edited todo in the todos array
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (isEditing) {
-      const updatedTodos = [...todos]; //Storing the todos in this variable to create a copy
-      updatedTodos[editingTodoIndex] = todo; //Storing the changed todo 
-      setTodos(updatedTodos); //Making changes in the todos array
+      // Edit existing task
+      setTasks((prevTasks) =>
+        prevTasks.map((item, index) =>
+          index === editingTaskIndex ? task : item
+        )
+      );
       setIsEditing(false);
-      setEditingTodoIndex(null);
+      setEditingTaskIndex(null);
     } else {
-      setTodos([...todos, todo]);
+      // Add new task
+      const newTask = {
+        ...task,
+        taskId: uuid(),
+      };
+      setTasks((prevTasks) => [...prevTasks, newTask]);
     }
 
-    setTodo({
+    // Reset task form
+    setTask({
+      taskId: "",
+      taskList: "",
       title: "",
       description: "",
     });
-    console.log(todos);
   };
 
   const handleEdit = (index) => {
-    const editingTodo = todos[index];
-    setTodo({
-      title: editingTodo.title,
-      description: editingTodo.description,
+    const editingTask = tasks[index];
+    // Set the task data for editing
+    setTask({
+      taskId: editingTask.taskId,
+      taskList: editingTask.taskList,
+      title: editingTask.title,
+      description: editingTask.description,
     });
     setIsEditing(true);
-    setEditingTodoIndex(index);
+    setEditingTaskIndex(index);
   };
 
-  const handleDelete = (index) => {
-    const filteredTodos = todos.filter((_, i) => i !== index);
-    setTodos(filteredTodos);
+  const handleDelete = (taskId) => {
+    // Delete task based on taskId
+    setTasks((prevTasks) => prevTasks.filter((task) => task.taskId !== taskId));
   };
+
+  const handleChangeTaskList = (taskId) => {
+    const newTaskList = prompt("Enter the new taskList:");
+    if (newTaskList !== null) {
+      // Change the taskList of the task
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.taskId === taskId ? { ...task, taskList: newTaskList } : task
+        )
+      );
+    }
+  };
+
+  const groupTasksByTaskList = () => {
+    return tasks.reduce((groupedTasks, task) => {
+      const { taskList } = task;
+      groupedTasks[taskList] = groupedTasks[taskList] || [];
+      groupedTasks[taskList].push({ ...task });
+      return groupedTasks;
+    }, {});
+  };
+
+  const groupedTasks = groupTasksByTaskList();
 
   return (
     <div className="app">
-      <h1>TODO APP</h1>
+      <h1>TASK MANAGEMENT APP</h1>
       <form onSubmit={handleSubmit}>
-        {/* initialised its value */}
+        {/* Task form */}
         <input
-          value={todo.title}
+          value={task.taskList}
+          name="taskList"
+          placeholder="TaskList"
+          type="text"
+          onChange={handleChange}
+        />
+        <br />
+        <br />
+        <input
+          value={task.title}
           name="title"
           placeholder="Title"
           type="text"
@@ -72,7 +115,7 @@ function App() {
         <br />
         <br />
         <input
-          value={todo.description}
+          value={task.description}
           name="description"
           placeholder="Description"
           type="text"
@@ -81,19 +124,34 @@ function App() {
         <br />
         <br />
         <button type="submit">Submit</button>
+        <br />
+        <br />
       </form>
 
-      {todos.map((item, index) => {
-        return (
-          <>
-            {/* Render the todo object properties */}
-            <h1>{item.title}</h1>
-            <p>{item.description}</p>
-            <button onClick={() => handleEdit(index)}>Edit</button>
-            <button onClick={() => handleDelete(index)}>Delete</button>{" "}
-          </>
-        );
-      })}
+      {Object.entries(groupedTasks).map(([taskList, tasks]) => (
+        <div key={taskList}>
+          {/* Display task list */}
+          <h1>{taskList}</h1>
+          <h1>JSON to Excel Export</h1>
+          <JsonToExcel jsonData={tasks} />
+          <ul>
+            {tasks.map((task, index) => (
+              <li key={task.taskId}>
+                {/* Display individual task */}
+                <h2>{task.title}</h2>
+                <p>{task.description}</p>
+                <button onClick={() => handleEdit(index)}>Edit</button>
+                <button onClick={() => handleDelete(task.taskId)}>
+                  Delete
+                </button>
+                <button onClick={() => handleChangeTaskList(task.taskId)}>
+                  Change TaskList
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
